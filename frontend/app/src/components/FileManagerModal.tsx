@@ -7,7 +7,8 @@ const API_BASE = "http://localhost:8000";
 interface Props {
     open: boolean;
     onClose: () => void;
-    refreshKey: number; // used to re-fetch list when upload occurs
+    refreshKey: number;
+    richStyle?: boolean;
 }
 interface FileEntry {
     filename: string;
@@ -15,21 +16,20 @@ interface FileEntry {
 }
 
 
-const FileManagerModal: React.FC<Props> = ({ open, onClose, refreshKey }) => {
+const FileManagerModal: React.FC<Props> = ({ open, onClose, refreshKey, richStyle }) => {
     const [files, setFiles] = useState<FileEntry[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState<string | null>(null); // uuid of file being deleted
 
     const fetchFiles = async () => {
         const res = await axios.get(`${API_BASE}/documents`);
         setFiles(res.data.files);
     };
 
-
     const handleDelete = async (uuid: string) => {
-        setLoading(true);
+        setLoading(uuid);
         await axios.delete(`${API_BASE}/documents/${encodeURIComponent(uuid)}`);
         await fetchFiles();
-        setLoading(false);
+        setLoading(null);
     };
 
     useEffect(() => {
@@ -39,33 +39,45 @@ const FileManagerModal: React.FC<Props> = ({ open, onClose, refreshKey }) => {
     return (
         <Dialog.Root open={open} onOpenChange={onClose}>
             <Dialog.Portal>
-                <Dialog.Overlay style={styles.overlay} />
-                <Dialog.Content style={styles.modal}>
-                    <Dialog.Title style={styles.title}>📁 Uploaded Files</Dialog.Title>
-
+                <Dialog.Overlay className={richStyle ? "fm-modal-overlay-rich" : undefined} style={!richStyle ? styles.overlay : undefined} />
+                <Dialog.Content className={richStyle ? "fm-modal-rich" : undefined} style={!richStyle ? styles.modal : undefined}>
+                    <div className="fm-modal-header-rich">
+                        <Dialog.Title className={richStyle ? "fm-modal-title-rich" : undefined} style={!richStyle ? styles.title : undefined}>Uploaded Files</Dialog.Title>
+                        <button className="chat-upload-close-fixed" onClick={onClose} title="Close">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="12" fill="#f87171" />
+                                <path d="M8 8l8 8M16 8l-8 8" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+                            </svg>
+                        </button>
+                    </div>
                     {files.length === 0 ? (
-                        <p>No files uploaded.</p>
+                        <p className={richStyle ? "fm-modal-empty-rich" : undefined}>No files uploaded.</p>
                     ) : (
-                        <ul style={styles.list}>
+                            <ul className={richStyle ? "fm-modal-list-rich" : undefined} style={!richStyle ? styles.list : undefined}>
                             {files.map((file) => (
-                                <li key={file.uuid} style={styles.listItem}>
-                                    {file.filename}
+                                <li key={file.uuid} className={richStyle ? "fm-modal-list-item-rich" : undefined} style={!richStyle ? styles.listItem : undefined}>
+                                    <span className="fm-modal-file-icon">📄</span>
+                                    <span className="fm-modal-file-name">{file.filename}</span>
                                     <button
                                         onClick={() => handleDelete(file.uuid)}
-                                        disabled={loading}
-                                        style={styles.deleteButton}
+                                        disabled={!!loading}
+                                        className={richStyle ? "fm-modal-delete-btn-rich" : undefined}
+                                        style={!richStyle ? styles.deleteButton : undefined}
+                                        title="Delete file"
                                     >
-                                        ❌
+                                        {loading === file.uuid ? (
+                                            <span className="fm-modal-loader"></span>
+                                        ) : (
+                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                                                <circle cx="12" cy="12" r="12" fill="#f87171" />
+                                                <path d="M8 8l8 8M16 8l-8 8" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+                                            </svg>
+                                        )}
                                     </button>
                                 </li>
                             ))}
-                        </ul>
-
+                            </ul>
                     )}
-
-                    <Dialog.Close asChild>
-                        <button style={styles.close}>Close</button>
-                    </Dialog.Close>
                 </Dialog.Content>
             </Dialog.Portal>
         </Dialog.Root>
